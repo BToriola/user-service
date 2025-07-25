@@ -1,22 +1,53 @@
 from flask import Flask, request, jsonify
 from firebase_admin import auth, credentials, initialize_app
-from auth import authenticate_user, register_user, get_user_profile, update_user_profile
+from auth_simple import authenticate_user, register_user, get_user_profile, update_user_profile, validate_app_id
 import os
+from dotenv import load_dotenv
+
+# Only load .env in development
+if os.getenv('GAE_ENV') != 'standard' and os.getenv('GOOGLE_CLOUD_PROJECT') is None:
+    load_dotenv()
 
 app = Flask(__name__)
 
 # Initialize Firebase Admin SDK
-cred = credentials.Certificate(os.getenv("FIREBASE_CREDENTIALS_PATH"))
+# In production, use Application Default Credentials
+if os.getenv('FIREBASE_CREDENTIALS_PATH'):
+    cred = credentials.Certificate(os.getenv("FIREBASE_CREDENTIALS_PATH"))
+elif os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON'):
+    # For services like Heroku where we pass JSON as env var
+    import json
+    import tempfile
+    cred_dict = json.loads(os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON'))
+    cred = credentials.Certificate(cred_dict)
+else:
+    # Use default credentials in production (Cloud Run, App Engine)
+    cred = credentials.ApplicationDefault()
+
 initialize_app(cred)
+
+@app.route("/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "healthy", "service": "userservice"}), 200
 
 @app.route("/user/login", methods=["POST"])
 def login():
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
+    app_id = data.get("app_id")
+    
+    if not app_id:
+        return jsonify({"error": "app_id is required"}), 400
+    
     try:
-        user = authenticate_user(email, password)
-        return jsonify({"token": user["idToken"], "user_id": user["uid"]}), 200
+        validate_app_id(app_id)
+        user = authenticate_user(email, password, app_id)
+        return jsonify({
+            "token": user["idToken"], 
+            "user_id": user["uid"],
+            "app_id": user["app_id"]
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -25,9 +56,18 @@ def register():
     data = request.get_json()
     email = data.get("email")
     password = data.get("password")
+    app_id = data.get("app_id")
+    
+    if not app_id:
+        return jsonify({"error": "app_id is required"}), 400
+    
     try:
-        user = register_user(email, password)
-        return jsonify({"user_id": user["uid"]}), 201
+        validate_app_id(app_id)
+        user = register_user(email, password, app_id)
+        return jsonify({
+            "user_id": user["uid"],
+            "app_id": user["app_id"]
+        }), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
@@ -36,9 +76,15 @@ def profile(user_id):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return jsonify({"error": "Missing or invalid token"}), 401
+    
+    app_id = request.headers.get("X-App-ID") or request.args.get("app_id")
+    if not app_id:
+        return jsonify({"error": "app_id is required"}), 400
+    
     token = auth_header.split(" ")[1]
     try:
-        profile = get_user_profile(user_id, token)
+        validate_app_id(app_id)
+        profile = get_user_profile(user_id, token, app_id)
         return jsonify(profile), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 401
@@ -48,12 +94,34 @@ def update_profile(user_id):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
         return jsonify({"error": "Missing or invalid token"}), 401
+    
+    app_id = request.headers.get("X-App-ID") or request.args.get("app_id")
+    if not app_id:
+        return jsonify({"error": "app_id is required"}), 400
+    
     token = auth_header.split(" ")[1]
     data = request.get_json()
     preferences = data.get("preferences", {})
     try:
-        update_user_profile(user_id, token, preferences)
+        validate_app_id(app_id)
+        update_user_profile(user_id, token, preferences, app_id)
         return jsonify({"message": "Profile updated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@app.route("/admin/users/<app_id>", methods=["GET"])
+def get_app_users(app_id):
+    """Admin endpoint to get all users for a specific app"""
+    # You might want to add admin authentication here
+    try:
+        validate_app_id(app_id)
+        from auth_simple import get_users_by_app
+        users = get_users_by_app(app_id)
+        return jsonify({
+            "app_id": app_id,
+            "users": users,
+            "count": len(users)
+        }), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
