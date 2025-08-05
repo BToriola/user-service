@@ -8,7 +8,7 @@ import json
 import time
 
 # Replace this with your actual Cloud Run URL
-BASE_URL = "https://your-service-url-here.run.app"
+BASE_URL = "https://rkt-user-service-ae2mdfuq2q-uc.a.run.app"
 
 def test_health():
     """Test health endpoint"""
@@ -65,14 +65,11 @@ def main():
     print("🚀 Testing Deployed User Service")
     print("=" * 50)
     
-    # Update BASE_URL before running
-    if "your-service-url-here" in BASE_URL:
-        print("❌ Please update BASE_URL with your actual Cloud Run URL")
-        return
-    
     # Test health
     if not test_health():
-        print("❌ Health check failed!")
+        print("❌ Health check failed! Service might not be publicly accessible.")
+        print("💡 Try accessing the service URL directly in your browser:")
+        print(f"   {BASE_URL}/health")
         return
     
     # Test registration

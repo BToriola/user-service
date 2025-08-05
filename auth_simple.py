@@ -20,6 +20,7 @@ def validate_app_id(app_id):
 def authenticate_user(email, password, app_id):
     """
     Simplified authentication for testing purposes with multi-tenancy.
+    Returns a simple token instead of Firebase custom token to avoid IAM issues.
     """
     try:
         validate_app_id(app_id)
@@ -36,26 +37,52 @@ def authenticate_user(email, password, app_id):
         if user_data.get("app_id") != app_id:
             raise Exception("User not authorized for this application")
         
-        # Create a custom token for testing
-        custom_token = auth.create_custom_token(user.uid).decode()
-        return {"uid": user.uid, "idToken": custom_token, "app_id": app_id}
+        # Update last active timestamp
+        db.collection("users").document(user.uid).update({
+            "lastActiveTimestamp": firestore_client.SERVER_TIMESTAMP
+        })
+        
+        # Return a simple token (in production, you'd want proper JWT tokens)
+        simple_token = f"user_{user.uid}_{app_id}_token"
+        return {"uid": user.uid, "idToken": simple_token, "app_id": app_id}
     except auth.UserNotFoundError:
         raise Exception("User not found")
     except Exception as e:
         raise Exception(f"Authentication failed: {str(e)}")
 
-def register_user(email, password, app_id):
+def register_user(email, password, app_id, firstName=None, lastName=None, userName=None, avatar=None):
     try:
         validate_app_id(app_id)
         user = auth.create_user(email=email, password=password)
-        # Initialize user profile in Firestore with app_id for multi-tenancy
-        db = firestore_client.Client(project="readrocket-a9268")
-        db.collection("users").document(user.uid).set({
+        
+        from datetime import datetime
+        current_time = datetime.utcnow()
+        
+        # Extract defaults from email if not provided
+        email_prefix = email.split('@')[0]
+        
+        # Ensure all required fields are present with defaults
+        user_data = {
+            "userId": user.uid,
             "email": email,
             "app_id": app_id,
+            "userName": userName if userName is not None else email_prefix,
+            "firstName": firstName if firstName is not None else email_prefix.capitalize(),
+            "lastName": lastName if lastName is not None else "User",
+            "provider": "email",
+            "isAdmin": False,
+            "credits": 3,  # Default credits
+            "avatar": avatar if avatar is not None else "https://firebasestorage.googleapis.com/v0/b/readrocket-a9268.firebasestorage.app/o/icons%2FAnimation%20-%201743735839589.gif?alt=media&token=910f04a5-4154-403a-bbe5-a96263f9fb50",
+            "createdAt": current_time,
+            "lastActiveTimestamp": current_time,
             "subscription_status": "free",
             "preferences": {"modification_mode": "suggestion"}
-        })
+        }
+        
+        # Initialize complete user profile in Firestore
+        db = firestore_client.Client(project="readrocket-a9268")
+        db.collection("users").document(user.uid).set(user_data)
+        
         return {"uid": user.uid, "app_id": app_id}
     except Exception as e:
         raise Exception(f"Registration failed: {str(e)}")
