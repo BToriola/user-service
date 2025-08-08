@@ -1,5 +1,6 @@
 from firebase_admin import auth, firestore
 from google.cloud import firestore as firestore_client
+from config import Config
 import os
 
 def authenticate_user(email, password, app_id):
@@ -110,15 +111,9 @@ def get_users_by_app(app_id, limit=100):
 
 def validate_app_id(app_id):
     """Validate that app_id is in allowed list"""
-    # Define your allowed app IDs here
-    ALLOWED_APP_IDS = [
-        "readrocket-web",
-        "readrocket-mobile", 
-        "readrocket-admin",
-        "your-other-app"
-    ]
+    ALLOWED_APP_IDS = Config.get_allowed_app_ids()
     
     if app_id not in ALLOWED_APP_IDS:
-        raise Exception(f"Invalid app_id: {app_id}")
+        raise Exception(f"Invalid app_id: {app_id}. Allowed: {', '.join(ALLOWED_APP_IDS)}")
     
     return True

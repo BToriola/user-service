@@ -251,11 +251,13 @@ Retrieve all users for a specific application (Admin endpoint).
 ---
 
 ## App IDs
-The following app IDs are supported:
+The following app IDs are currently supported:
 - `readrocket-web`
 - `readrocket-mobile`
 - `readrocket-admin`
-- `your-other-app`
+- `aijobpro-web`
+
+**Note**: App IDs are configurable via the `ALLOWED_APP_IDS` environment variable. Contact your system administrator to add new app IDs.
 
 ---
 

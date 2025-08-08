@@ -20,10 +20,13 @@ X-App-ID: readrocket-web
 *Admin endpoint - should have admin auth in production
 
 ## Valid App IDs
+
 - `readrocket-web`
-- `readrocket-mobile` 
+- `readrocket-mobile`
 - `readrocket-admin`
-- `your-other-app`
+- `aijobpro-web`
+
+**Note**: Configurable via `ALLOWED_APP_IDS` environment variable
 
 ## Key Request/Response Examples
 
