@@ -11,17 +11,19 @@ if os.getenv('GAE_ENV') != 'standard' and os.getenv('GOOGLE_CLOUD_PROJECT') is N
 app = Flask(__name__)
 
 # Initialize Firebase Admin SDK
-# In production, use Application Default Credentials
-if os.getenv('FIREBASE_CREDENTIALS_PATH'):
+# In production, use the service account file that's included in the container
+service_account_path = "rrkt-firebase-adminsdk.json"
+if os.path.exists(service_account_path):
+    cred = credentials.Certificate(service_account_path)
+elif os.getenv('FIREBASE_CREDENTIALS_PATH'):
     cred = credentials.Certificate(os.getenv("FIREBASE_CREDENTIALS_PATH"))
 elif os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON'):
     # For services like Heroku where we pass JSON as env var
     import json
-    import tempfile
     cred_dict = json.loads(os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON'))
     cred = credentials.Certificate(cred_dict)
 else:
-    # Use default credentials in production (Cloud Run, App Engine)
+    # Use default credentials as fallback
     cred = credentials.ApplicationDefault()
 
 initialize_app(cred)
@@ -58,15 +60,22 @@ def register():
     password = data.get("password")
     app_id = data.get("app_id")
     
+    # Optional profile fields (will use defaults if not provided)
+    firstName = data.get("firstName")  # Default: email prefix capitalized
+    lastName = data.get("lastName")    # Default: "User"
+    userName = data.get("userName")    # Default: email prefix
+    avatar = data.get("avatar")        # Default: default avatar URL
+    
     if not app_id:
         return jsonify({"error": "app_id is required"}), 400
     
     try:
         validate_app_id(app_id)
-        user = register_user(email, password, app_id)
+        user = register_user(email, password, app_id, firstName, lastName, userName, avatar)
         return jsonify({
             "user_id": user["uid"],
-            "app_id": user["app_id"]
+            "app_id": user["app_id"],
+            "message": "User registered successfully with complete profile"
         }), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400

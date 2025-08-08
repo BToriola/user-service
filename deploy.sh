@@ -1,43 +1,36 @@
 #!/bin/bash
 
-# Cloud Run deployment script for the chat processing worker
+# Cloud Run deployment script for user service
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
-# Load from .env.production into environment
-export $(grep -v '^#' .env | xargs)
+# Load environment variables from .env file
+if [ -f .env ]; then
+    echo "Loading environment variables from .env file..."
+    export $(grep -v '^#' .env | grep -v '^$' | xargs)
+else
+    echo "Warning: .env file not found"
+fi
 
 # Configuration
 PROJECT_ID="readrocket-a9268"
 SERVICE_NAME="rkt-user-service"
 REGION="us-central1"
-IMAGE_NAME="gcr.io/$PROJECT_ID/$SERVICE_NAME"
 
-# Optional: Check if essential environment variables are set
-REQUIRED_VARS=( 
-  FIREBASE_PROJECT_ID
-  GOOGLE_API_KEY
-  FIREBASE_STORAGE_BUCKET 
-  FIREBASE_API_KEY
-)
+# Authenticate with Google Cloud if needed
+echo "Checking Google Cloud authentication..."
+if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
+    echo "Please authenticate with Google Cloud:"
+    gcloud auth login
+fi
 
-echo "Checking required environment variables..."
-for var in "${REQUIRED_VARS[@]}"; do
-  if [[ -z "${!var}" ]]; then
-    echo "Error: Environment variable $var is not set"
-    exit 1
-  fi
-done
+# Set project
+gcloud config set project "$PROJECT_ID"
 
-# Build and push the Docker image
-echo "Building and pushing Docker image..."
-docker buildx build --platform linux/amd64 --load -t "$IMAGE_NAME" .
-docker push "$IMAGE_NAME"
-
-# Deploy to Cloud Run
-echo "Deploying to Cloud Run..."
+# Deploy to Cloud Run from source
+echo "Deploying to Cloud Run from source..."
 gcloud run deploy "$SERVICE_NAME" \
-  --image "$IMAGE_NAME" \
+  --source . \
   --platform managed \
   --region "$REGION" \
   --allow-unauthenticated \
@@ -48,7 +41,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --max-instances 10 \
   --port 8080 \
   --project "$PROJECT_ID" \
-  --env-vars-file .env.yaml
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
 
 echo "✅ Deployment complete!"
 echo "🔗 Service URL: $(gcloud run services describe "$SERVICE_NAME" --region "$REGION" --project "$PROJECT_ID" --format 'value(status.url)')"
