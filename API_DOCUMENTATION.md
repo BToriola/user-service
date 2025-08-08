@@ -2,7 +2,7 @@
 
 ## Base URL
 - **Development**: `http://localhost:8080`
-- **Production**: `https://your-cloud-run-service-url.com`
+- **Production**: `https://rkt-user-service-685994944265.us-central1.run.app`
 
 ## Authentication
 Most endpoints require a Bearer token in the Authorization header:
