@@ -1,4 +1,8 @@
 import os
+import logging
+
+# Configure logging for config module
+logger = logging.getLogger(__name__)
 
 class Config:
     FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "/path/to/firebase-credentials.json")
@@ -13,4 +17,6 @@ class Config:
     @classmethod
     def get_allowed_app_ids(cls):
         """Get list of allowed app IDs, stripped of whitespace"""
-        return [app_id.strip() for app_id in cls.ALLOWED_APP_IDS if app_id.strip()]
+        app_ids = [app_id.strip() for app_id in cls.ALLOWED_APP_IDS if app_id.strip()]
+        logger.info(f"Loaded allowed app IDs: {app_ids}")
+        return app_ids
