@@ -3,6 +3,8 @@ from google.cloud import firestore as firestore_client
 from config import Config
 from firebase_init import initialize_firebase
 import os
+# load env variables
+
 
 # Initialize Firebase once
 try:

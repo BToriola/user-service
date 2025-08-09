@@ -4,11 +4,31 @@
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
+
+# Load from .env.production into environment
+export $(grep -v '^#' .env | xargs)
 # Configuration
 PROJECT_ID="readrocket-a9268"
 SERVICE_NAME="rkt-user-service"
 REGION="us-central1"
 
+
+
+
+# Optional: Check if essential environment variables are set
+REQUIRED_VARS=( 
+  FIREBASE_PROJECT_ID
+  GOOGLE_API_KEY
+  FIREBASE_STORAGE_BUCKET 
+)
+
+echo "Checking required environment variables..."
+for var in "${REQUIRED_VARS[@]}"; do
+  if [[ -z "${!var}" ]]; then
+    echo "Error: Environment variable $var is not set"
+    exit 1
+  fi
+done
 echo "🚀 Starting deployment to Cloud Run..."
 
 # Check if service account key exists
@@ -24,9 +44,7 @@ echo "✅ Service account key found"
 if [ ! -f ".env.yaml" ]; then
     echo "❌ Error: .env.yaml not found!"
     echo "Creating default .env.yaml file..."
-    cat > .env.yaml << EOF
-ALLOWED_APP_IDS: "readrocket-web,readrocket-mobile,readrocket-admin,aijobpro-web"
-GOOGLE_CLOUD_PROJECT: "readrocket-a9268"
+    cat > .env.yaml << EOF 
 EOF
     echo "✅ Created .env.yaml file"
 else
@@ -69,7 +87,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --max-instances 10 \
   --port 8080 \
   --project "$PROJECT_ID" \
-  --env-vars-file .env.yaml
+  --env-vars-file .env.yaml \
+  --service-account "firebase-adminsdk-gsfo9@readrocket-a9268.iam.gserviceaccount.com"
 
 echo "✅ Deployment complete!"
 
