@@ -30,9 +30,24 @@ def initialize_firebase():
         
         # Determine credential source based on environment
         if os.getenv('GOOGLE_CLOUD_PROJECT'):
-            # Running in Google Cloud - use default credentials (service account from Secret Manager)
-            logger.info("Running in Google Cloud - using default application credentials")
-            cred = credentials.ApplicationDefault()
+            # Running in Google Cloud - use service account from Secret Manager
+            logger.info("Running in Google Cloud - retrieving service account from Secret Manager")
+            try:
+                from google.cloud import secretmanager
+                client = secretmanager.SecretManagerServiceClient()
+                project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+                secret_name = f"projects/{project_id}/secrets/rrkt-firebase-adminsdk/versions/latest"
+                response = client.access_secret_version(request={"name": secret_name})
+                secret_payload = response.payload.data.decode("UTF-8")
+                
+                import json
+                cred_dict = json.loads(secret_payload)
+                cred = credentials.Certificate(cred_dict)
+                logger.info("Successfully loaded service account from Secret Manager")
+            except Exception as secret_error:
+                logger.warning(f"Failed to load from Secret Manager: {secret_error}")
+                logger.info("Falling back to default application credentials")
+                cred = credentials.ApplicationDefault()
         elif os.path.exists(service_account_path):
             # Local development - use service account file
             logger.info(f"Local development - using service account file: {service_account_path}")
