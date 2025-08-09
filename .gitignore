@@ -2,6 +2,9 @@
 env
 .env
 firebase-credentials.json
+rrkt-firebase-adminsdk.json
+*firebase-adminsdk*.json
+service-account-key.json
 __pycache__/
 *.pyc
 *.pyo

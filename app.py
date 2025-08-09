@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
-from firebase_admin import auth, credentials, initialize_app
+from firebase_admin import auth
 from auth_simple import authenticate_user, register_user, get_user_profile, update_user_profile, validate_app_id
+from firebase_init import initialize_firebase
 import os
 from dotenv import load_dotenv
 
@@ -11,22 +12,12 @@ if os.getenv('GAE_ENV') != 'standard' and os.getenv('GOOGLE_CLOUD_PROJECT') is N
 app = Flask(__name__)
 
 # Initialize Firebase Admin SDK
-# In production, use the service account file that's included in the container
-service_account_path = "rrkt-firebase-adminsdk.json"
-if os.path.exists(service_account_path):
-    cred = credentials.Certificate(service_account_path)
-elif os.getenv('FIREBASE_CREDENTIALS_PATH'):
-    cred = credentials.Certificate(os.getenv("FIREBASE_CREDENTIALS_PATH"))
-elif os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON'):
-    # For services like Heroku where we pass JSON as env var
-    import json
-    cred_dict = json.loads(os.getenv('GOOGLE_APPLICATION_CREDENTIALS_JSON'))
-    cred = credentials.Certificate(cred_dict)
-else:
-    # Use default credentials as fallback
-    cred = credentials.ApplicationDefault()
-
-initialize_app(cred)
+try:
+    storage, firestore_client = initialize_firebase()
+    print("Firebase initialized successfully")
+except Exception as e:
+    print(f"Failed to initialize Firebase: {e}")
+    # Continue without Firebase for now, will fail on first Firebase operation
 
 @app.route("/health", methods=["GET"])
 def health_check():
