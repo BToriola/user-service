@@ -5,6 +5,14 @@ from auth_utils import verify_firebase_password
 import os
 import logging
 
+from firebase_init import initialize_firebase
+
+# Initialize Firebase once
+try:
+    storage, db = initialize_firebase()
+except Exception as e:
+    print(f"Warning: Firebase initialization failed: {e}")
+    db = None
 # Configure logging for auth module
 logger = logging.getLogger(__name__)
 
