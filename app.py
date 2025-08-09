@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
-from firebase_admin import auth
+from firebase_admin import credentials, initialize_app, storage, firestore
+from google.cloud.firestore_v1 import Increment 
 from auth_simple import authenticate_user, register_user, get_user_profile, update_user_profile, validate_app_id
 from firebase_init import initialize_firebase
 from logging_config import setup_logging, log_environment_info, log_request_context, log_performance_metrics, log_security_event
@@ -7,13 +8,66 @@ import os
 import logging
 import time
 import json
+from pathlib import Path
+from dotenv import load_dotenv
 from datetime import datetime, timezone
 from functools import wraps
-from dotenv import load_dotenv
+# Load environment variables first
+load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / '.env.production')
 
-# Only load .env in development
-if os.getenv('GAE_ENV') != 'standard' and os.getenv('GOOGLE_CLOUD_PROJECT') is None:
-    load_dotenv()
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+ 
+
+# # Initialize components
+# chat_store = ChatStore() 
+
+
+# Time configuration
+WORK_HOURS_START = 9  # 9 AM
+WORK_HOURS_END = 18   # 6 PM
+TIMEZONE = pytz.timezone("America/Los_Angeles")
+
+# Environment variables
+# Firebase setup
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CRED_PATH = os.path.join(BASE_DIR, './rrkt-firebase-adminsdk.json')
+PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID")
+FIREBASE_PROJECT_ID = PROJECT_ID
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+FIREBASE_STORAGE_BUCKET = os.getenv("FIREBASE_STORAGE_BUCKET")  
+FIREBASE_PROJECT_ID = os.getenv('FIREBASE_PROJECT_ID') 
+
+def initialize_firebase():
+    """Initialize Firebase with credentials if not already initialized"""
+    try:
+        # Try to get an existing app
+        storage.bucket()
+        return storage, firestore.client()
+    except ValueError:
+        # Initialize new app if none exists
+        cred = credentials.Certificate(CRED_PATH)
+        initialize_app(cred, {
+            'storageBucket': 'readrocket-a9268.firebasestorage.app'
+        })
+        return storage, firestore.client()
+
+# Initialize Firebase
+try:
+    cred = credentials.Certificate(CRED_PATH)
+    initialize_app(cred, {
+        'storageBucket': FIREBASE_STORAGE_BUCKET,
+        'projectId': PROJECT_ID 
+    })
+    storage_client = storage.Client()
+    firestore_client = firestore.Client()
+except Exception as e:
+    logger.error(f"Firebase initialization error: {e}")
+
+ 
+
 
 # Set up comprehensive logging
 logger = setup_logging("user-service")

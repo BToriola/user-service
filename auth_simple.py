@@ -4,17 +4,19 @@ from config import Config
 from auth_utils import verify_firebase_password
 import os
 import logging
-
-from firebase_init import initialize_firebase
-
-# Initialize Firebase once
-try:
-    storage, db = initialize_firebase()
-except Exception as e:
-    print(f"Warning: Firebase initialization failed: {e}")
-    db = None
-# Configure logging for auth module
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+# from firebase_init import initialize_firebase
+
+# # Initialize Firebase once
+# try:
+#     storage, db = initialize_firebase()
+# except Exception as e:
+#     print(f"Warning: Firebase initialization failed: {e}")
+#     db = None
+# # Configure logging for auth module
+# logger = logging.getLogger(__name__)
 
 def validate_app_id(app_id):
     """Validate that app_id is in allowed list"""
