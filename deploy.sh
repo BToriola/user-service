@@ -31,8 +31,8 @@ if [ ! -f "config/.env.yaml" ]; then
 ALLOWED_APP_IDS: "readrocket-web,readrocket-mobile,readrocket-admin,aijobpro-web"
 GOOGLE_CLOUD_PROJECT: "readrocket-a9268"
 FIREBASE_API_KEY: "AIzaSyACt2SPVeRwAKGW6wu2Jt80Q806mbgq0ig"
-GOOGLE_APPLICATION_CREDENTIALS: "/app/rrkt-firebase-adminsdk.json"
-FIREBASE_CREDENTIALS_PATH: "/app/rrkt-firebase-adminsdk.json"
+GOOGLE_APPLICATION_CREDENTIALS: "/rrkt-firebase-adminsdk.json"
+FIREBASE_CREDENTIALS_PATH: "/rrkt-firebase-adminsdk.json"
 EOF
     echo "✅ Created config/.env.yaml file"
 else
@@ -99,7 +99,24 @@ gcloud run deploy "$SERVICE_NAME" \
   --port 8080 \
   --project "$PROJECT_ID" \
   --service-account "$SERVICE_ACCOUNT" \
-  --env-vars-file config/.env.yaml
+# Deploy to Cloud Run from source
+echo "📦 Deploying to Cloud Run from source..."
+gcloud run deploy "$SERVICE_NAME" \
+  --source . \
+  --platform managed \
+  --region "$REGION" \
+  --allow-unauthenticated \
+  --memory 1Gi \
+  --cpu 1 \
+  --timeout 900 \
+  --concurrency 80 \
+  --max-instances 10 \
+  --port 8080 \
+  --project "$PROJECT_ID" \
+  --service-account "$SERVICE_ACCOUNT" \
+  --set-env-vars "ALLOWED_APP_IDS=readrocket-web,readrocket-mobile,readrocket-admin,aijobpro-web" \
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=$PROJECT_ID" \
+  --set-env-vars "FIREBASE_API_KEY=AIzaSyACt2SPVeRwAKGW6wu2Jt80Q806mbgq0ig"
 
 echo "✅ Deployment complete!"
 
