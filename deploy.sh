@@ -1,34 +1,16 @@
 #!/bin/bash
 
-# Cloud Run deployment script for user service
+# Comprehensive Cloud Run deployment script for user service
 
 set -e  # Exit immediately if a command exits with a non-zero status
 
-
-# Load from .env.production into environment
-export $(grep -v '^#' .env | xargs)
 # Configuration
 PROJECT_ID="readrocket-a9268"
 SERVICE_NAME="rkt-user-service"
 REGION="us-central1"
+IMAGE_NAME="gcr.io/$PROJECT_ID/$SERVICE_NAME"
+SERVICE_ACCOUNT="firebase-adminsdk-gsfo9@readrocket-a9268.iam.gserviceaccount.com"
 
-
-
-
-# Optional: Check if essential environment variables are set
-REQUIRED_VARS=( 
-  FIREBASE_PROJECT_ID
-  GOOGLE_API_KEY
-  FIREBASE_STORAGE_BUCKET 
-)
-
-echo "Checking required environment variables..."
-for var in "${REQUIRED_VARS[@]}"; do
-  if [[ -z "${!var}" ]]; then
-    echo "Error: Environment variable $var is not set"
-    exit 1
-  fi
-done
 echo "🚀 Starting deployment to Cloud Run..."
 
 # Check if service account key exists
@@ -41,22 +23,20 @@ fi
 echo "✅ Service account key found"
 
 # Check if environment config exists
-if [ ! -f ".env.yaml" ]; then
-    echo "❌ Error: .env.yaml not found!"
+if [ ! -f "config/.env.yaml" ]; then
+    echo "❌ Error: config/.env.yaml not found!"
     echo "Creating default .env.yaml file..."
-    cat > .env.yaml << EOF 
+    mkdir -p config
+    cat > config/.env.yaml << EOF
+ALLOWED_APP_IDS: "readrocket-web,readrocket-mobile,readrocket-admin,aijobpro-web"
+GOOGLE_CLOUD_PROJECT: "readrocket-a9268"
+FIREBASE_API_KEY: "AIzaSyACt2SPVeRwAKGW6wu2Jt80Q806mbgq0ig"
+GOOGLE_APPLICATION_CREDENTIALS: "/app/rrkt-firebase-adminsdk.json"
+FIREBASE_CREDENTIALS_PATH: "/app/rrkt-firebase-adminsdk.json"
 EOF
-    echo "✅ Created .env.yaml file"
+    echo "✅ Created config/.env.yaml file"
 else
     echo "✅ Environment config found"
-fi
-
-# Load environment variables from .env file if it exists
-if [ -f .env ]; then
-    echo "Loading environment variables from .env file..."
-    export $(grep -v '^#' .env | grep -v '^$' | xargs)
-else
-    echo "Warning: .env file not found"
 fi
 
 # Authenticate with Google Cloud if needed
@@ -73,6 +53,37 @@ gcloud config set project "$PROJECT_ID"
 echo "Setting quota project to match active project..."
 gcloud auth application-default set-quota-project "$PROJECT_ID"
 
+# Grant necessary permissions to the service account
+echo "🔐 Ensuring service account has proper permissions..."
+
+# Firebase Admin permissions
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/firebase.admin" || echo "Firebase admin role already granted or not available"
+
+# Firestore permissions
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/datastore.user" || echo "Datastore role already granted"
+
+# Firebase Auth permissions
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/firebase.developAdmin" || echo "Firebase develop admin role already granted or not available"
+
+# Token creator permission for custom tokens
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$SERVICE_ACCOUNT" \
+    --role="roles/iam.serviceAccountTokenCreator" || echo "Token creator role already granted"
+
+#mount secret
+# echo "🔐 Mounting service account key as secret..."
+# gcloud run deploy "$SERVICE_NAME" \
+#   --image gcr.io/$PROJECT_ID/$IMAGE_NAME \
+#   --region us-central1 \
+#   --update-secrets "FIREBASE_CREDENTIALS=rrkt-firebase-adminsdk:latest"
+
+
 # Deploy to Cloud Run from source
 echo "📦 Deploying to Cloud Run from source..."
 gcloud run deploy "$SERVICE_NAME" \
@@ -87,8 +98,8 @@ gcloud run deploy "$SERVICE_NAME" \
   --max-instances 10 \
   --port 8080 \
   --project "$PROJECT_ID" \
-  --env-vars-file .env.yaml \
-  --service-account "firebase-adminsdk-gsfo9@readrocket-a9268.iam.gserviceaccount.com"
+  --service-account "$SERVICE_ACCOUNT" \
+  --env-vars-file config/.env.yaml
 
 echo "✅ Deployment complete!"
 

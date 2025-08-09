@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 from functools import wraps
 from dotenv import load_dotenv
 
-initialize_firebase()
 # Only load .env in development
 if os.getenv('GAE_ENV') != 'standard' and os.getenv('GOOGLE_CLOUD_PROJECT') is None:
     load_dotenv()

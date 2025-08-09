@@ -33,14 +33,14 @@ def initialize_firebase():
         })
         return storage, firestore.client()
     
-# Initialize Firebase
-try:
-    cred = credentials.Certificate(CRED_PATH)
-    initialize_app(cred, {
-        'storageBucket': FIREBASE_STORAGE_BUCKET,
-        'projectId': PROJECT_ID 
-    })
-    storage_client = storage.Client()
-    firestore_client = firestore.Client()
-except Exception as e:
-    logger.error(f"Firebase initialization error: {e}")
+# # Initialize Firebase
+# try:
+#     cred = credentials.Certificate(CRED_PATH)
+#     initialize_app(cred, {
+#         'storageBucket': FIREBASE_STORAGE_BUCKET,
+#         'projectId': PROJECT_ID 
+#     })
+#     storage_client = storage.Client()
+#     firestore_client = firestore.Client()
+# except Exception as e:
+#     logger.error(f"Firebase initialization error: {e}")
