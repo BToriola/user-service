@@ -1,7 +1,8 @@
 # Core web framework
 flask==2.3.2
 werkzeug==2.3.6
-
+uvicorn[standard]
+firebase-admin 
 # Firebase and Google Cloud services
 firebase-admin==6.5.0
 google-cloud-firestore==2.16.0
